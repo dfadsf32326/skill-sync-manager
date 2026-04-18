@@ -8,6 +8,7 @@ BASE_PATH = "/Users/robinlu/Self-established_skill"
 GH_USER = "dfadsf32326"
 EXCLUDE_DIRS = ["create-ex"] # 排除名单
 LARK_CLI = os.path.expanduser("~/.npm-global/bin/lark-cli")
+HERMES_CUSTOM_SKILLS_PATH = os.path.expanduser("~/.hermes/skills/custom")
 
 def run_command(cmd, workdir=None):
     try:
@@ -22,6 +23,15 @@ def sync_skill(skill_name):
     path = os.path.join(BASE_PATH, skill_name)
     log = []
     
+    # 0. 自动检查并创建 Hermes 软链接
+    target_link = os.path.join(HERMES_CUSTOM_SKILLS_PATH, skill_name)
+    if not os.path.exists(target_link):
+        run_command(f"mkdir -p {HERMES_CUSTOM_SKILLS_PATH}")
+        # 如果目标是个坏链接，先删掉
+        run_command(f"rm -f {target_link}")
+        run_command(f"ln -s {path} {target_link}")
+        log.append("自动创建了 Hermes 技能软链接")
+
     # 1. 检查 Git 初始化
     if not os.path.exists(os.path.join(path, ".git")):
         run_command("git init", path)
