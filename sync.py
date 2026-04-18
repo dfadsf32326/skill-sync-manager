@@ -25,7 +25,7 @@ def sync_skill(skill_name):
     # 1. 检查 Git 初始化
     if not os.path.exists(os.path.join(path, ".git")):
         run_command("git init", path)
-        log.append("Initialized Git")
+        log.append("初始化 Git 完成")
 
     # 2. 检查 GitHub 仓库与 Remote
     rc, stdout, stderr = run_command(f"gh repo view {GH_USER}/{skill_name}", path)
@@ -33,34 +33,34 @@ def sync_skill(skill_name):
         # 仓库不存在则创建
         run_command(f"gh repo create {skill_name} --public", path)
         run_command(f"git remote add origin https://github.com/{GH_USER}/{skill_name}.git", path)
-        log.append(f"Created GH repo and added origin")
+        log.append("创建了 GitHub 仓库并绑定了 origin")
     else:
         # 检查 origin 是否正确
         rc_rem, remotes, _ = run_command("git remote -v", path)
         if f"{GH_USER}/{skill_name}" not in remotes:
             run_command("git remote remove origin", path)
             run_command(f"git remote add origin https://github.com/{GH_USER}/{skill_name}.git", path)
-            log.append("Corrected origin to personal account")
+            log.append("已将 origin 修正为老板的个人账号")
 
     # 3. 检查改动并提交
     _, status, _ = run_command("git status --porcelain", path)
     if status:
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         run_command("git add .", path)
-        run_command(f"git commit -m 'Auto-sync: {now}'", path)
+        run_command(f"git commit -m '自动同步: {now}'", path)
         # 推送
         rc_push, _, err_push = run_command("git push -u origin HEAD", path)
         if rc_push == 0:
-            log.append(f"Synced changes at {now}")
+            log.append(f"在 {now} 成功推送了变更")
             return True, " | ".join(log)
         else:
-            return False, f"Push failed: {err_push}"
+            return False, f"推送失败: {err_push}"
     else:
-        return True, "No changes"
+        return True, "没有发现变更"
 
 def send_lark_report(report_lines):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    title = f"Skill Sync Report ({now})"
+    title = f"技能自动同步报告 ({now})"
     # 转换为飞书列表格式
     content = "\n".join([f"* {line}" for line in report_lines])
     msg = f"{title}\n........................\n{content}"
@@ -77,10 +77,10 @@ if __name__ == "__main__":
     for skill in skills:
         success, info = sync_skill(skill)
         status_icon = "✅" if success else "❌"
-        if info != "No changes" or not success:
+        if info != "没有发现变更" or not success:
             reports.append(f"{status_icon} **{skill}**: {info}")
     
     if reports:
         send_lark_report(reports)
     else:
-        print("Everything up to date, no report sent.")
+        print("所有技能都是最新的，没有变更，未发送飞书报告。")
