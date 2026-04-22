@@ -23,14 +23,23 @@ def sync_skill(skill_name):
     path = os.path.join(BASE_PATH, skill_name)
     log = []
     
-    # 0. 自动检查并创建 Hermes 软链接
-    target_link = os.path.join(HERMES_CUSTOM_SKILLS_PATH, skill_name)
-    if not os.path.exists(target_link):
-        run_command(f"mkdir -p {HERMES_CUSTOM_SKILLS_PATH}")
-        # 如果目标是个坏链接，先删掉
-        run_command(f"rm -f {target_link}")
-        run_command(f"ln -s {path} {target_link}")
-        log.append("自动创建了 Hermes 技能软链接")
+    # 0. 实体双向同步归集 (取代经常失效的软链接)
+    # 比较 ~/.hermes/skills/custom/ 和 Git 源目录，自动合并最新的文件修改
+    hermes_path = os.path.join(HERMES_CUSTOM_SKILLS_PATH, skill_name)
+    
+    # 清理过去遗留的软链接，改为物理文件夹，解决软链无法稳定加载的问题
+    if os.path.islink(hermes_path):
+        run_command(f"rm -f {hermes_path}")
+        
+    if not os.path.exists(hermes_path):
+        run_command(f"mkdir -p {hermes_path}")
+        
+    # 双向合并 (rsync -au 利用文件修改时间，永远保留最新版本):
+    # 第一步：把 hermes 目录中较新的修改（比如平时运行调试时改的）抽回 Git 仓库
+    run_command(f"rsync -au --exclude='.git' {hermes_path}/ {path}/")
+    # 第二步：把 Git 仓库中较新的修改（比如老板直接编辑源码时改的）反向对齐给 hermes
+    run_command(f"rsync -au --exclude='.git' {path}/ {hermes_path}/")
+    log.append("物理归集并双向同步了 custom 目录代码")
 
     # 1. 检查 Git 初始化
     if not os.path.exists(os.path.join(path, ".git")):
